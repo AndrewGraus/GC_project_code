@@ -1,15 +1,18 @@
+#!/usr/bin/env python3 
 ## job name
-#PBS -N CL_test
-## queue: devel <= 2 hr, normal <= 8 hr, long <= 5 day
-#PBS -q normal
-#PBS -l select=1:ncpus=20:mpiprocs=1:ompthreads=1:model=ivy
-#PBS -l walltime=8:00:00
-#PBS -j oe
-#PBS -o MCMC_test.txt
-#PBS -M agraus@utexas.edu
-#PBS -m bae
-#PBS -V
-#PBS -w group_list=s1542
+#SBATCH --job-name=run_MCMC
+##SBATCH --partition=skx-dev    # SKX node: 48 cores, 4 GB per core, 192 GB total
+##SBATCH --partition=skx-normal    # SKX node: 48 cores, 4 GB per core, 192 GB total
+#SBATCH --partition=normal    ## KNL node: 64 cores x 2 FP threads, 1.6 GB per core, 96 GB total
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1    ## MPI tasks per node
+#SBATCH --cpus-per-task=1    ## OpenMP threads per MPI task
+#SBATCH --time=48:00:00
+#SBATCH --output=MCMC_job_%j.txt                                                                                   
+#SBATCH --mail-user=agraus@utexas.edu
+#SBATCH --mail-type=fail
+#SBATCH --mail-type=end
+#SBATCH --account=TG-AST140080
 
 #The purpose of this program is to take what I've learned from the MCMC
 #notebooks and put it in a program that will run on a supercomputer
@@ -91,7 +94,7 @@ def log_probability(theta, obs_cmd_color, obs_cmd_mag, isochrone_file = None):
         chi_color_list.append(chi_color)
         chi_mag_list.append(chi_mag)
 
-    assert shape(chi_mag_list)==shape(np.array(chi_mag_list)**2.0)
+    #assert shape(chi_mag_list)==shape(np.array(chi_mag_list)**2.0)
 
     Likelihood = -np.sum(np.array(chi_mag_list)**2+np.array(chi_color_list)**2) #Likelihood which is the sum of all the distances between the observed data and it's closest point on the isochrone
 
@@ -106,9 +109,10 @@ def log_probability(theta, obs_cmd_color, obs_cmd_mag, isochrone_file = None):
 
 print('loading HUGS photometry')
 
-f = np.loadtxt('../Hugs_photometry/hlsp_hugs_hst_wfc3-uvis-acs-wfc_ngc2808_multi_v1_catalog-meth1.txt',
+f = np.loadtxt('./Hugs_photometry/hlsp_hugs_hst_wfc3-uvis-acs-wfc_ngc2808_multi_v1_catalog-meth1.txt',
               dtype=object)
 
+F275 = np.array(f[:,2],dtype=float)
 F336 = np.array(f[:,8],dtype=float)
 F438 = np.array(f[:,14],dtype=float)
 F606 = np.array(f[:,20],dtype=float)
@@ -144,17 +148,21 @@ F814 = F814[obs_mask]
 max_likelihood = -np.inf
 basti_file_final = None
 
-for basti_folder in os.listdir('../Basti_isochrones/'): 
+for basti_folder in os.listdir('./Basti_isochrones/'): 
     if basti_folder.startswith('FEH'):
-        for basti_file in os.listdir('../Basti_isochrones/'+str(basti_folder)):
+        for basti_file in os.listdir('./Basti_isochrones/'+str(basti_folder)):
             print('running MCMC for {} ...'.format(basti_file))
+
+            basti_loc = './Basti_isochrones/'+str(basti_folder)+'/'+str(basti_file)
+
+            obs_cmd_color, obs_cmd_mag = F606-F814,F606
 
             #run the MCMC for this isochrone
             pos = np.array([15.,0.5]) + 1.0e-3*np.random.randn(5, 2) #initial guess for the MCMC
             nwalkers, ndim = 5, 2 #ndim is the number of prior parameters, nwalkers is the number if independent tasks
-            sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,isochrone_file=basti_file))
+            sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc))
 
-            sampler.run_mcmc(pos, 500, progress=True)
+            sampler.run_mcmc(pos, 500, progress=False)
 
             #Now I need the best fit parameters
             samples = sampler.get_chain() #This is the full chain of the MCMC best value at the end
@@ -165,9 +173,8 @@ for basti_folder in os.listdir('../Basti_isochrones/'):
             #Samples[-1] gives the end state of every walker (it's a 3d array) and then each column is for
             #a different prior variable
 
-            if best_fit_log_prob > max_likelihood:
-                max_likelihood = best_fit_log_prob
-
+            if best_fit_log_likelihood > max_likelihood:
+                max_likelihood = best_fit_log_likelihood
                 basti_file_final = basti_file
 
 split_final = re.split('z|y|O',basti_file)
