@@ -148,10 +148,16 @@ F814 = F814[obs_mask]
 max_likelihood = -np.inf
 basti_file_final = None
 
+file1 = open('isochrone_results.txt','w+')
+
 for basti_folder in os.listdir('./Basti_isochrones/'): 
     if basti_folder.startswith('FEH'):
         for basti_file in os.listdir('./Basti_isochrones/'+str(basti_folder)):
             print('running MCMC for {} ...'.format(basti_file))
+
+            split_iso = re.split('z|y|O',basti_file)
+            age_iso = float(split_iso[0])/1000.0 #Age of best fit isochrone Gyr                                  
+            Z_iso = float('0.'+split_iso[1]) #Z of best fit isochrone     
 
             basti_loc = './Basti_isochrones/'+str(basti_folder)+'/'+str(basti_file)
 
@@ -162,7 +168,7 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             nwalkers, ndim = 5, 2 #ndim is the number of prior parameters, nwalkers is the number if independent tasks
             sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc))
 
-            sampler.run_mcmc(pos, 500, progress=False)
+            sampler.run_mcmc(pos, 250, progress=True)
 
             #Now I need the best fit parameters
             samples = sampler.get_chain() #This is the full chain of the MCMC best value at the end
@@ -173,9 +179,16 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             #Samples[-1] gives the end state of every walker (it's a 3d array) and then each column is for
             #a different prior variable
 
+            write_list = [str(basti_file)+'\n', 'age: {} Gyr, metallicity: {}'.format(age_iso,Z_iso)+'\n',
+                          'distance modulus: {}, reddening: {}'.format(best_fit_modulus,best_fit_reddening)+'\n', 'best fit log probability: {}'.format(best_fit_log_likelihood)+'\n']
+
+            file1.writelines(write_list)
+
             if best_fit_log_likelihood > max_likelihood:
                 max_likelihood = best_fit_log_likelihood
                 basti_file_final = basti_file
+
+file1.close()
 
 split_final = re.split('z|y|O',basti_file)
 age_final = float(split_final[0])/1000.0 #Age of best fit isochrone Gyr
