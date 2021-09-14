@@ -17,13 +17,14 @@
 #The purpose of this program is to take what I've learned from the MCMC
 #notebooks and put it in a program that will run on a supercomputer
 #
-#The one modification I need to make is to add in a loop over all folders
-#and all isochrones and then save the maximum likelihood over all isochrones
+#Sept 7th update:
 #
-#
+# Working on the parallel version, parallelization for emcee is annoying because they reccomend you put
+# The code in a loop with Pool
 
 import os, re, emcee
 import numpy as np
+from multiprocessing import Pool, cpu_count
 
 def log_prior(theta):
     #This is the prior function, for now it's very simple just a uniform prior
@@ -107,6 +108,10 @@ def log_probability(theta, obs_cmd_color, obs_cmd_mag, isochrone_file = None):
 
 #Now that the functions are in all I need to do is load the Hugs photometry and then loop over the isochrones
 
+ncpu = cpu_count() #Number of cores
+print('This machine/node has {} cores'.format(ncpu))
+
+
 print('loading HUGS photometry')
 
 f = np.loadtxt('./Hugs_photometry/hlsp_hugs_hst_wfc3-uvis-acs-wfc_ngc2808_multi_v1_catalog-meth1.txt',
@@ -168,7 +173,10 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             nwalkers, ndim = 5, 2 #ndim is the number of prior parameters, nwalkers is the number if independent tasks
             sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc))
 
-            sampler.run_mcmc(pos, 250, progress=True)
+            #seems like you only need to use Pool when running the actual sampler
+            with Pool() as pool:
+                sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc),pool=pool)
+                sampler.run_mcmc(pos, 250, progress=True)
 
             #Now I need the best fit parameters
             samples = sampler.get_chain() #This is the full chain of the MCMC best value at the end
