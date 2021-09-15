@@ -163,7 +163,7 @@ modulus_final = None
 redenning_final = None
 
 file1 = open('isochrone_results.txt','w+')
-file1.write('#isochrone_file   age (Gyr)  Z  Likelihood  distance_modulus  reddening')
+file1.write('#isochrone_file   age (Gyr)  Z  Likelihood  distance_modulus  reddening\n')
 
 for basti_folder in os.listdir('./Basti_isochrones/'): 
     if basti_folder.startswith('FEH'):
@@ -200,7 +200,7 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             #Samples[-1] gives the end state of every walker (it's a 3d array) and then each column is for
             #a different prior variable
 
-            write_list = [str(basti_file),str(age_iso),str(Z_iso),str(best_fit_log_likelihood),str(best_fit_modulus),str(best_fit_reddening)]
+            write_list = [str(basti_file)+' '+str(age_iso)+' '+str(Z_iso)+' '+str(best_fit_log_likelihood)+' '+str(best_fit_modulus)+' '+str(best_fit_reddening)+'\n']
 
             file1.writelines(write_list)
 
@@ -210,7 +210,7 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
                 age_final = age_iso
                 Z_final = Z_iso
                 modulus_final = best_fit_modulus
-                reddening_final = best_file_reddening
+                reddening_final = best_fit_reddening
 
 file1.close()
 
