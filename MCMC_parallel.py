@@ -157,8 +157,13 @@ F814 = F814[obs_mask]
 
 max_likelihood = -np.inf
 basti_file_final = None
+age_final = None
+Z_final = None
+modulus_final = None
+redenning_final = None
 
 file1 = open('isochrone_results.txt','w+')
+file1.write('#isochrone_file   age (Gyr)  Z  Likelihood  distance_modulus  reddening')
 
 for basti_folder in os.listdir('./Basti_isochrones/'): 
     if basti_folder.startswith('FEH'):
@@ -195,14 +200,17 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             #Samples[-1] gives the end state of every walker (it's a 3d array) and then each column is for
             #a different prior variable
 
-            write_list = [str(basti_file)+'\n', 'age: {} Gyr, metallicity: {}'.format(age_iso,Z_iso)+'\n',
-                          'distance modulus: {}, reddening: {}'.format(best_fit_modulus,best_fit_reddening)+'\n', 'best fit log probability: {}'.format(best_fit_log_likelihood)+'\n']
+            write_list = [str(basti_file),str(age_iso),str(Z_iso),str(best_fit_log_likelihood),str(best_fit_modulus),str(best_fit_reddening)]
 
             file1.writelines(write_list)
 
             if best_fit_log_likelihood > max_likelihood:
                 max_likelihood = best_fit_log_likelihood
                 basti_file_final = basti_file
+                age_final = age_iso
+                Z_final = Z_iso
+                modulus_final = best_fit_modulus
+                reddening_final = best_file_reddening
 
 file1.close()
 
@@ -211,5 +219,5 @@ age_final = float(split_final[0])/1000.0 #Age of best fit isochrone Gyr
 Z_final = float('0.'+split_final[1]) #Z of best fit isochrone
 print('best fit file is:')
 print(basti_file)
-print('best fit age: {}'.format(age_test))
-print('best fit Z: {}'.format(Z_test))
+print('best fit age: {}'.format(age_final))
+print('best fit Z: {}'.format(Z_final))
