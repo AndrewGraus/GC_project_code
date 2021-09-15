@@ -21,10 +21,15 @@
 #
 # Working on the parallel version, parallelization for emcee is annoying because they reccomend you put
 # The code in a loop with Pool
+#
+#Sept 14th update:
+#
+# Pool gives a weird error, there's a github thread that suggests python 3.8 changes how multiprocess works
+# on osx so I'm going to try the fix.
 
 import os, re, emcee
 import numpy as np
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, set_start_method
 
 def log_prior(theta):
     #This is the prior function, for now it's very simple just a uniform prior
@@ -105,7 +110,7 @@ def log_probability(theta, obs_cmd_color, obs_cmd_mag, isochrone_file = None):
     
     return lp + Likelihood
 
-
+set_start_method('fork')#This may only be necessary for python3.8 on osx
 #Now that the functions are in all I need to do is load the Hugs photometry and then loop over the isochrones
 
 ncpu = cpu_count() #Number of cores
@@ -174,10 +179,13 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc))
 
             #seems like you only need to use Pool when running the actual sampler
-            with Pool() as pool:
-                sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc),pool=pool)
-                sampler.run_mcmc(pos, 250, progress=True)
+            #Do I even need this with?
+            pool=Pool()
+            sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc),pool=pool)
+            sampler.run_mcmc(pos, 250, progress=True)
 
+            pool.close()
+            
             #Now I need the best fit parameters
             samples = sampler.get_chain() #This is the full chain of the MCMC best value at the end
             log_prob_chain = sampler.get_log_prob()
