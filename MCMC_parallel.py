@@ -30,6 +30,7 @@
 import os, re, emcee
 import numpy as np
 from multiprocessing import Pool, cpu_count, set_start_method
+from schwimmbad import MPIPool
 
 def log_prior(theta):
     #This is the prior function, for now it's very simple just a uniform prior
@@ -110,7 +111,7 @@ def log_probability(theta, obs_cmd_color, obs_cmd_mag, isochrone_file = None):
     
     return lp + Likelihood
 
-set_start_method('fork')#This may only be necessary for python3.8 on osx
+#set_start_method('fork')#This may only be necessary for python3.8 on osx
 #Now that the functions are in all I need to do is load the Hugs photometry and then loop over the isochrones
 
 ncpu = cpu_count() #Number of cores
@@ -184,8 +185,14 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc))
 
             #seems like you only need to use Pool when running the actual sampler
-            #Do I even need this with?
-            pool=Pool()
+            pool=MPIPool() #needed for parallelization
+            #pool=Pool() #needed for computers
+            #in the example on emcees website it includes an if statement:
+            #if not pool.is_master():
+            #    pool.wait()
+            #    sys.exit(0)
+            #This also theoretically needs an mpiexc or ibrun but I'm not sure if I need it.
+
             sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc),pool=pool)
             sampler.run_mcmc(pos, 250, progress=True)
 
