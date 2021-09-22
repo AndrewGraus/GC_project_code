@@ -5,7 +5,7 @@
 ##SBATCH --partition=skx-normal    # SKX node: 48 cores, 4 GB per core, 192 GB total
 #SBATCH --partition=normal    ## KNL node: 64 cores x 2 FP threads, 1.6 GB per core, 96 GB total
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1    ## MPI tasks per node
+#SBATCH --ntasks-per-node=16    ## MPI tasks per node
 #SBATCH --cpus-per-task=1    ## OpenMP threads per MPI task
 #SBATCH --time=48:00:00
 #SBATCH --output=MCMC_job_%j.txt                                                                                   
@@ -188,9 +188,10 @@ for basti_folder in os.listdir('./Basti_isochrones/'):
             pool=MPIPool() #needed for parallelization
             #pool=Pool() #needed for computers
             #in the example on emcees website it includes an if statement:
-            #if not pool.is_master():
-            #    pool.wait()
-            #    sys.exit(0)
+            #the schwimmbad documentation says I need this line, which says to wait for tasks from the master process
+            if not pool.is_master():
+                pool.wait()
+                sys.exit(0)
             #This also theoretically needs an mpiexc or ibrun but I'm not sure if I need it.
 
             sampler = emcee.EnsembleSampler(nwalkers,ndim, log_probability, args=(obs_cmd_color, obs_cmd_mag,basti_loc),pool=pool)
